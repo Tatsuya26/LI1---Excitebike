@@ -1,0 +1,135 @@
+-- | Este módulo define funções comuns da Tarefa 6 do trabalho prático.
+module Tarefa6_2019li1g102 where
+import Tarefa0_2019li1g102
+import Tarefa1_2019li1g102
+import Tarefa2_2019li1g102
+import Tarefa3_2019li1g102
+import Tarefa4_2019li1g102
+import LI11920
+import Data.List 
+
+-- * Funções principais da Tarefa 6.
+testState :: Estado
+testState = (Estado mapa42 [j42])
+
+j42 :: Jogador
+j42 = (Jogador 0 0.9 0.5 4 (Chao True))
+
+mapa42 :: Mapa
+mapa42 = [[Recta Terra 0, Recta Terra 0, Recta Terra 0, Recta Terra 0, Recta Terra 0],
+          [Recta Terra 0, Recta Boost 0, Recta Boost 0, Recta Boost 0, Recta Boost 0]]
+                                                                                     
+
+-- | Define um ro'bot' capaz de jogar autonomamente o jogo.
+bot :: Int          -- ^ O identificador do 'Jogador' associado ao ro'bot'.
+    -> Estado       -- ^ O 'Estado' para o qual o ro'bot' deve tomar uma decisão.
+    -> Maybe Jogada -- ^ Uma possível 'Jogada' a efetuar pelo ro'bot'.
+bot n (Estado m (j:js)) | mudouPista j1 m                     = Just Dispara
+                        | not(travessia j1) && estaNoChao j1  = Just Acelera
+                        | travessia j1  && estaNoChao j1      = (if posAtrito == (pista j1) then Just Acelera
+                                                                     else (if (posAtrito > pista j1) then Just (Movimenta B )
+                                                                            else Just (Movimenta C)))
+                        | estaNoAr j1                         = (if inc <= inclinacaoPeca (pecaSeguinte j m) - 5 && inc >= inclinacaoPeca(pecaSeguinte j m) + 5.0 then Nothing 
+                                                                else (if inc < inclinacaoPeca (pecaSeguinte j m) then Just (Movimenta E)
+                                                                     else Just (Movimenta D)))
+                           where 
+                            j1        = encontraIndiceLista n (j:js)          
+                            posAtrito = pSeguinte j1 m 
+                            inc       = inclinacaoJog j1 
+
+
+-- | Retorna as coordenadas no Ar de um 'Jogador'
+coordenAr:: Jogador -> Vetor
+coordenAr (Jogador _ d _ _ (Ar alt _ _ )) =  Cartesiano d alt
+
+-- | Função que calcula se um jogador mudou de pista 
+mudouPista :: Jogador -> Mapa -> Bool 
+mudouPista j@(Jogador p _ _ _ _) m = if p /= pistaAtual then True
+                                     else False
+                         where 
+                         pistaAtual = x 
+                         (x,y) = coordenadaJogador j 
+
+-- | Jogada Anterior 
+jogadaAnterior :: Maybe Jogada -> Bool 
+jogadaAnterior j = case j of
+                   Just (Movimenta _ ) -> True
+                   otherwise            -> False 
+
+
+-- |inclinação do jogador no ar
+inclinacaoJog :: Jogador -> Double
+inclinacaoJog (Jogador _ _ _ _ (Ar _ inc _)) = inc 
+
+-- | Funçao que encontra um jogador no mapa
+encontraJogadorNoMapa :: Int -> Estado -> Peca 
+encontraJogadorNoMapa n (Estado m (j:js)) =  encontraPosicaoMatriz (coordenadaJogador j1) m 
+                           where 
+                            j1= encontraIndiceLista n (j:js)
+
+-- | Posição da peça seguinte com menor atrito
+pSeguinte :: Jogador -> Mapa -> Double
+pSeguinte j m = atritoList (colunaMapa j m)
+
+
+-- | Função que devolve uma coluna do Mapa
+colunaMapa ::Jogador -> Mapa -> [Peca] 
+colunaMapa (Jogador _ b _ _ _)  m = encontraColunaMapa ((floor b)+1) (transpose m) 
+
+
+-- | Função que devolve uma coluna de um mapa
+encontraColunaMapa ::  Int -> Mapa -> [Peca]
+encontraColunaMapa 0 (h:t) = h 
+encontraColunaMapa n (h:t) = encontraColunaMapa (n-1) t
+
+
+-- | Função que calcula na lista de pecas seguintes qual a peça com menor atrito e devolve a pista da mesma 
+atritoList ::  [Peca] -> Double
+atritoList (h:t) = pMenor (map atrito (h:t))
+
+
+-- | Função que da a posição do menor elemento numa l sta
+pMenor :: Ord a => [a] -> Double
+pMenor [h] = 0
+pMenor (h:t)= if h == aux (h:t) then 0.0
+              else 1.0+pMenor t
+              where
+              aux [x] = x 
+              aux (x1:x2:xs)= if x1<x2 then aux (x1:xs)
+                              else aux (x2:xs)
+
+
+-- | Função que calcula se o jogador esta a passar de uma peca para outra 
+travessia :: Jogador -> Bool
+travessia (Jogador _ b _ _ _ ) = if  (b-realToFrac(floor b) > 0.69) && (b-realToFrac(floor b)< 0.99) then True
+                                 else False
+
+
+-- | Função que da a pista em que um jogador se encontra 
+pista :: Jogador -> Double
+pista (Jogador a _ _ _ _ ) = fromIntegral a 
+
+
+-- | Função que calcula a peça em que o jogador vai aterrar 
+pecaSeguinte :: Jogador -> Mapa -> Peca
+pecaSeguinte j@(Jogador p d v c (Ar alt inc g)) m =  encontraPosicaoMatriz pontoDeAterragem m 
+                                where 
+                                  pontoDeAterragem  = arredondaReta(intersecao retaDoJogador (retaPista m j ))
+                                  retaDoJogador     = (coordenAr j, (Cartesiano distN altN))
+                                  pecaAtual         = encontraPosicaoMatriz (x,y) m
+                                  (x,y)             = coordenadaJogador j
+                                  altN              = alt+(posy vetorArF)
+                                  distN             = d+(posx vetorArF)
+                                  vetorArF          = somaVetores (vetorVel j m) (vetorGrav j)
+
+
+-- | Função que dada um jogador da a reta da pista dele
+retaPista :: Mapa-> Jogador -> Reta 
+retaPista m j@(Jogador p d _ _ _) = ((Cartesiano 0 (realToFrac p)),(Cartesiano (realToFrac(length(head m))) (realToFrac p)))  
+
+
+-- | Função que arredonda coordenadas de reta 
+arredondaReta :: Ponto-> (Int,Int)
+arredondaReta (Cartesiano x y) = (fromIntegral(floor x),fromIntegral(floor y))
+
+

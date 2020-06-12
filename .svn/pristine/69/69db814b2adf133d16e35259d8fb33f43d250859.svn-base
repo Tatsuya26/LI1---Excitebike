@@ -1,0 +1,198 @@
+-- | Este módulo define funções comuns da Tarefa 5 do trabalho prático.
+module Main where
+import Tarefa0_2019li1g102
+import Tarefa1_2019li1g102
+import Tarefa2_2019li1g102
+import Tarefa3_2019li1g102
+import Tarefa4_2019li1g102
+import LI11920
+import Graphics.Gloss
+import Graphics.Gloss.Juicy
+import Graphics.Gloss.Interface.Pure.Game
+import Data.List
+
+-- | Função principal da Tarefa 5. 
+--
+-- __NB:__ Esta Tarefa é completamente livre. Deve utilizar a biblioteca <http://hackage.haskell.org/package/gloss gloss> para animar o jogo, e reutilizar __de forma completa__ as funções das tarefas anteriores.
+window :: Display
+window = FullScreen
+
+background :: Color
+background = orange
+
+frameRate :: Int
+frameRate = 50
+
+type StatusGloss = (Estado,[[Picture]])
+
+width :: Float
+width = -600
+
+height :: Float
+height = 50
+
+wPeca :: Float
+wPeca = 200
+
+hPeca :: Float
+hPeca = 40
+
+gameState :: Estado
+gameState = (Estado [[Recta Terra 0,Recta Lama 0,Rampa Cola 0 2, Rampa Lama 2 0, Recta Terra 0, Rampa Terra 0 1, Recta Terra 0],
+  [Recta Terra 0,Recta Lama 0,Rampa Cola 0 2, Rampa Lama 2 0, Recta Terra 0, Rampa Terra 0 1, Recta Terra 0],
+  [Recta Terra 0,Recta Lama 0,Rampa Cola 0 2, Rampa Lama 2 0, Recta Terra 0, Rampa Terra 0 1, Recta Terra 0],
+  [Recta Terra 0,Recta Lama 0,Rampa Cola 0 2, Rampa Lama 2 0, Recta Terra 0, Rampa Terra 0 1, Recta Terra 0],
+  [Recta Terra 0,Recta Lama 0,Rampa Cola 0 2, Rampa Lama 2 0, Recta Terra 0, Rampa Terra 0 1, Recta Terra 0]][(Jogador 0 0 0 4 (Chao False)),(Jogador 1 0 0 4 (Chao False)),(Jogador 2 0 0 4 (Chao False)),(Jogador 3 0 0 4 (Chao False)),(Jogador 4 0 0 4 (Chao False)),(Jogador 5 0 0 4 (Chao False))])
+
+initialState :: [[Picture]] -> StatusGloss
+initialState lt = (gameState,lt)
+
+drawEstado :: Estado -> [[Picture]] -> [Picture]
+drawEstado (Estado m lj) lt = (drawMapa m (width-d1) height lt) ++ (drawJogadores lj lt)
+                                          where d1 = 0--realToFrac (distanciaJogador (head lj)) 
+
+
+drawMapa :: Mapa -> Float -> Float -> [[Picture]] -> [Picture]
+drawMapa (p:ps) x y lt = (drawPista p x y lt)++(drawMapa ps x (y-hPeca) lt) 
+drawMapa [] _ _ _      = []
+
+
+drawPista :: Pista -> Float -> Float -> [[Picture]] -> [Picture]
+drawPista (p:ps) x y lt   = (drawPeca p x y lt):(drawPista ps (x+wPeca) y lt)
+drawPista [] _ _ _        = []
+
+
+drawPeca :: Peca -> Float -> Float -> [[Picture]] -> Picture
+drawPeca (Recta p i1) x y (_:[rtTerra,rtCola,rtRelva,rtBoost,rtLama]:_:_:[]) = 
+                                       case (p,i1) of 
+                                         (Terra, 0) -> Translate x (y+px) (Scale 1 0.50 (rtTerra))
+                                         (Cola,  0) -> Translate x (y+px) (Scale 1 0.50 (rtCola))
+                                         (Relva, 0) -> Translate x (y+px) (Scale 1 0.50 (rtRelva))
+                                         (Boost, 0) -> Translate x (y+px) (Scale 1 0.50 (rtBoost))
+                                         (Lama,  0) -> Translate x (y+px) (Scale 1 0.50 (rtLama))
+                                        where px = (realToFrac i1)*hPeca
+drawPeca r@(Rampa p i1 i2) x y lt | i1-i2 > 0 = drawDescida r x y lt
+                                  | i1-i2 < 0 = drawSubida r x y lt
+
+drawDescida :: Peca -> Float -> Float -> [[Picture]] -> Picture
+drawDescida (Rampa p i1 i2) x y (_:_:_:[rD1Terra,rD2Terra,rD1Cola,rD2Cola,rD1Relva,rD2Relva,rD1Boost,rD2Boost,rD1Lama,rD2Lama]:[]) = 
+                                       case (p,dif,i1) of 
+                                         (Terra,1,1)  -> Translate x (y+px) (Scale 1 0.50 (rD1Terra))
+                                         (Cola,1,1)   -> Translate x (y+px) (Scale 1 0.50 (rD1Cola))
+                                         (Relva,1,1)  -> Translate x (y+px) (Scale 1 0.50 (rD1Relva))
+                                         (Boost,1,1)  -> Translate x (y+px) (Scale 1 0.50 (rD1Boost))
+                                         (Lama,1,1)   -> Translate x (y+px) (Scale 1 0.50 (rD1Lama))
+                                         (Terra,2,2)  -> Translate x (y+px) (Scale 1 0.50 (rD2Terra))
+                                         (Cola,2,2)   -> Translate x (y+px) (Scale 1 0.50 (rD2Cola))
+                                         (Relva,2,2)  -> Translate x (y+px) (Scale 1 0.50 (rD2Relva))
+                                         (Boost,2,2)  -> Translate x (y+px) (Scale 1 0.50 (rD1Boost))
+                                         (Lama, 2,2)  -> Translate x (y+px) (Scale 1 0.50 (rD2Lama))
+            
+                                       where px  = (realToFrac i2)*hPeca
+                                             dif = i1-i2 
+drawSubida :: Peca -> Float -> Float -> [[Picture]] -> Picture 
+drawSubida (Rampa p i1 i2) x y (_:_:[rU1Terra,rU2Terra,rU1Cola,rU2Cola,rU1Relva,rU2Relva,rU1Boost,rU2Boost,rU1Lama,rU2Lama]:_:[]) = 
+                                       case (p,dif,i2) of 
+                                         (Terra,1,1)  -> Translate x (y+px) (Scale 1 0.50 (rU1Terra))
+                                         (Cola,1,1)   -> Translate x (y+px) (Scale 1 0.50 (rU1Cola))
+                                         (Relva,1,1)  -> Translate x (y+px) (Scale 1 0.50 (rU1Relva))
+                                         (Boost,1,1)  -> Translate x (y+px) (Scale 1 0.50 (rU1Boost))
+                                         (Lama,1,1)   -> Translate x (y+px) (Scale 1 0.50 (rU1Lama))
+                                         (Terra,2,2)  -> Translate x (y+px) (Scale 1 0.50 (rU2Terra))
+                                         (Cola,2,2)   -> Translate x (y+px) (Scale 1 0.50 (rU2Cola))
+                                         (Relva,2,2)  -> Translate x (y+px) (Scale 1 0.50 (rU2Relva))
+                                         (Boost,2,2)  -> Translate x (y+px) (Scale 1 0.50 (rU1Boost))
+                                         (Lama, 2,2)  -> Translate x (y+px) (Scale 1 0.50 (rU2Lama))
+                                       where px = (realToFrac i1)*hPeca
+                                             dif = i2-i1 
+
+
+
+drawJogadores :: [Jogador] -> [[Picture]] -> [Picture]
+drawJogadores [] _     = []
+drawJogadores (h:t) lt = (drawJogador h lt):(drawJogadores t lt)
+
+drawJogador :: Jogador -> [[Picture]] -> Picture
+drawJogador (Jogador p d v c e) ([p1,p1M]:_:_:_:[]) = case e of 
+                              Chao _   -> Translate (posxJogador d) (posyJogador (realToFrac p)) p1
+                              Ar a i _ -> Translate (posxJogador d) (posyJogador a) (Rotate (realToFrac i) p1)
+                              Morto _  -> Translate (posxJogador d) (posyJogador (realToFrac p)) p1M
+
+posxJogador :: Double -> Float
+posxJogador i = width + ((realToFrac (i+0.2))*wPeca)
+
+posyJogador :: Double -> Float
+posyJogador i = height - ((realToFrac (i-1))*hPeca)
+
+altInicial :: Peca -> Int
+altInicial (Rampa _ h _) = fromIntegral h
+altInicial (Recta _ h)   = fromIntegral h
+
+
+drawStatus :: StatusGloss -> Picture
+drawStatus (e,(b:r)) = Pictures [bg, st]
+                where bg = head b
+                      st = Pictures (drawEstado e r)
+
+reactEvent :: Event -> StatusGloss -> StatusGloss
+reactEvent _ s = s -- ignora qualquer outro evento
+{--reactEvent (EventKey (SpecialKey KeyUp)    Down _ _) (x,y,lp) = (x,y+5,lp)
+reactEvent (EventKey (SpecialKey KeyDown)  Down _ _) (x,y,lp) = (x,y-5,lp)
+reactEvent (EventKey (SpecialKey KeyLeft)  Down _ _) (x,y,lp) = (x-5,y,lp)
+reactEvent (EventKey (SpecialKey KeyRight) Down _ _) (x,y,lp) = (x+5,y,lp)
+
+"../textures/map/rtTerra.png"
+"../textures/map/rtCola.png"
+"../textures/map/rtRelva.png"
+--}
+
+
+reactTime :: Float -> StatusGloss -> StatusGloss
+reactTime  n ((Estado m ((Jogador a b c d e):t)),lt) = ((Estado m ((Jogador a (b+2) c d e):t)),lt)
+
+main :: IO ()
+main = do Just bg1      <- loadJuicy "../textures/bg/bg1.png"
+          Just rtTerra  <- loadJuicy "../textures/map/reta/terra.png"
+          Just rtCola   <- loadJuicy "../textures/map/reta/cola.png"
+          Just rtRelva  <- loadJuicy "../textures/map/reta/relva.png"
+          Just rtBoost  <- loadJuicy "../textures/map/reta/boost.png"
+          Just rtLama   <- loadJuicy "../textures/map/reta/lama.png"
+          Just rU1Terra <- loadJuicy "../textures/map/rampa/up/terra1.png"
+          Just rU2Terra <- loadJuicy "../textures/map/rampa/up/terra2.png"   
+          Just rU1Cola  <- loadJuicy "../textures/map/rampa/up/cola1.png"
+          Just rU2Cola  <- loadJuicy "../textures/map/rampa/up/cola2.png"
+          Just rU1Relva <- loadJuicy "../textures/map/rampa/up/relva1.png"
+          Just rU2Relva <- loadJuicy "../textures/map/rampa/up/relva2.png"
+          Just rU1Boost <- loadJuicy "../textures/map/rampa/up/boost1.png"
+          Just rU2Boost <- loadJuicy "../textures/map/rampa/up/boost2.png"
+          Just rU1Lama  <- loadJuicy "../textures/map/rampa/up/lama1.png"
+          Just rU2Lama  <- loadJuicy "../textures/map/rampa/up/lama2.png"
+          Just rD1Terra <- loadJuicy "../textures/map/rampa/down/terra1.png"
+          Just rD2Terra <- loadJuicy "../textures/map/rampa/down/terra2.png" 
+          Just rD1Cola  <- loadJuicy "../textures/map/rampa/down/cola1.png"
+          Just rD2Cola  <- loadJuicy "../textures/map/rampa/down/cola2.png"
+          Just rD1Relva <- loadJuicy "../textures/map/rampa/down/relva1.png"
+          Just rD2Relva <- loadJuicy "../textures/map/rampa/down/relva2.png"
+          Just rD1Boost <- loadJuicy "../textures/map/rampa/down/boost1.png"
+          Just rD2Boost <- loadJuicy "../textures/map/rampa/down/boost2.png"
+          Just rD1Lama  <- loadJuicy "../textures/map/rampa/down/lama1.png"
+          Just rD2Lama  <- loadJuicy "../textures/map/rampa/down/lama2.png"
+          Just p1       <- loadJuicy "../textures/players/p1.png"  
+          Just p1M      <- loadJuicy "../textures/players/p1M.png" 
+          play window
+               background
+               frameRate
+               (initialState [[bg1],
+                              [p1,p1M],
+                              [rtTerra,rtCola,rtRelva,rtBoost,rtLama],
+                              [rU1Terra,rU2Terra,rU1Cola,rU2Cola,rU1Relva,rU2Relva,rU1Boost,rU2Boost,rU1Lama,rU2Lama],
+                              [rD1Terra,rD2Terra,rD1Cola,rD2Cola,rD1Relva,rD2Relva,rD1Boost,rD2Boost,rD1Lama,rD2Lama]
+                              ])
+               drawStatus
+               reactEvent
+               reactTime
+
+
+
+
+

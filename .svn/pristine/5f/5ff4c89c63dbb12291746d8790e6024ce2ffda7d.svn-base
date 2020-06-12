@@ -1,0 +1,215 @@
+-- | Este módulo define funções comuns da Tarefa 2 do trabalho prático.
+module Tarefa2_2019li1g102 where
+import Tarefa0_2019li1g102
+import Tarefa1_2019li1g102
+import LI11920
+
+-- * Testes
+
+-- | Testes unitários da Tarefa 2.
+--
+-- Cada teste é um triplo (/identificador do 'Jogador'/,/'Jogada' a efetuar/,/'Estado' anterior/).
+--
+-- Variaveis de teste para '[Jogador]' 'Mapa' 'Estado'
+testJogadores = [(Jogador 0 0 2.0 42 (Chao True)),
+                 (Jogador 1 0 0.0 18 (Chao True)),
+                 (Jogador 2 0 3.0 24 (Chao False)),
+                 (Jogador 3 0 4.0 0 (Chao True)),
+                 (Jogador 4 0.0 2.0 1 (Chao True)),
+                 (Jogador 5 0 4.1 2 (Ar 20.0 (-90) 0)),
+                 (Jogador 6 0 4.1 2 (Ar 20.0 (-80) 0)),
+                 (Jogador 7 0 2.1 3 (Ar 20.0 90 0)),
+                 (Jogador 8 0 3.0 4 (Ar 20.0 80 0)),
+                 (Jogador 9 0 3.0 0 (Ar 20.0 60 0)),
+                 (Jogador 10 0 1.0 5 (Chao True)),
+                 (Jogador 11 0 1.0 0 (Morto 1.0))]
+testMapa = gera 12 10 5 
+testEstado = Estado testMapa testJogadores 
+
+testesT2 :: [(Int,Jogada,Estado)]
+testesT2 = [(0,Movimenta B,testEstado),  --Teste para cair
+            (0,Movimenta C,testEstado),  --Teste para verificar se sai fora do mapa para cima
+            (0,Dispara,testEstado),
+            (1,Movimenta C,testEstado),  --Teste para se esbarrar
+            (1,Movimenta B,testEstado),  --Teste para ver se muda de pista
+            (2,Acelera,testEstado),      --Teste para Acelerar se nao tiver a Acelerar
+            (2,Acelera,testEstado),      --Teste para Acelerar se tiver a Acelerar
+            (3,Desacelera,testEstado),   --Teste para Desacelerar se tiver a Acelerar
+            (3,Desacelera,testEstado),   --Teste para Desacelerar se nao tiver a Acelerar
+            (3,Dispara,testEstado),      --Teste para Disparar se tiver municao
+            (4,Dispara,testEstado),      --Teste para Disparar se nao tiver municao
+            (5,Movimenta D,testEstado),  --Teste para Inclinar para tras se ja tiver no limite
+            (6,Movimenta D,testEstado),
+            (7,Movimenta E,testEstado),  --Teste para Inclinar para a frente se ja tiver no limite
+            (8,Movimenta E,testEstado),  --Teste para Inclinar para a frente se tiver perto do limite
+            (9,Movimenta E,testEstado),  --Teste para Inclinar para a frente se tiver longe do limite
+            (9,Acelera,testEstado),      --Teste para Acelerar no Ar
+            (9,Desacelera,testEstado),   --Teste para Desacelerar no Ar
+            (10,Movimenta C,testEstado), --Teste para ver se muda de pista
+            (10,Movimenta E,testEstado), --Teste para inclinar no chao
+            (11,Movimenta E,testEstado), --Teste para verificar se consegue inclinar morto
+            (11,Movimenta B,testEstado)] --Teste para verificar se sai fora do mapa para baixo
+
+-- * Funções principais da Tarefa 2.
+
+-- | Efetua uma jogada.
+jogada :: Int -- ^ O identificador do 'Jogador' que efetua a jogada.
+       -> Jogada -- ^ A 'Jogada' a efetuar.
+       -> Estado -- ^ O 'Estado' anterior.
+       -> Estado -- ^ O 'Estado' resultante após o jogador efetuar a jogada.
+jogada j (Movimenta dir) e = funDirecao j e dir
+jogada j Acelera e = funAcelera j e
+jogada j Desacelera e = funDesacelera j e
+jogada j Dispara e = funDispara j e
+
+
+-- * Funções Auxiliares 
+-- ** Funções Gerais para as jogadas
+-- | Retorna True caso o jogador esteja 'Morto' e False caso contrário
+estaMorto :: Jogador -> Bool
+estaMorto (Jogador _ _ _ _ (Morto _ ))= True
+estaMorto _ = False
+
+-- | Retorna True caso o jogador esteja no 'Chao' e False caso contrário
+estaNoChao:: Jogador -> Bool
+estaNoChao (Jogador _ _ _ _ (Chao _))= True
+estaNoChao _ = False
+
+-- | Retorna True caso o jogador esteja no 'Ar' e False caso contrário
+estaNoAr:: Jogador -> Bool
+estaNoAr (Jogador _ _ _ _ (Ar _ _ _))= True
+estaNoAr _ = False
+
+-- | Função que atualiza o 'Estado' de um 'Jogador' para 'Morto' com um timeout de 1.0
+mataJogador :: Jogador -> Jogador
+mataJogador (Jogador a b c d e) = Jogador a b 0.0 d (Morto 1.0)
+
+-- | Retorna um 'Jogador' identificado pelo seu índice
+mostraJogador :: Int -> Estado -> Jogador
+mostraJogador i (Estado m l) = encontraIndiceLista i l
+
+-- | Retorna os indices da matriz da posição atual do 'Jogador'  
+coordenadaJogador :: Jogador -> (Int,Int)
+coordenadaJogador (Jogador a b _ _ _) = (a, floor (b))
+
+-- | Atualiza o 'Jogador' identificado por um indice na '[Jogador]'
+atualiza:: Int-> Jogador->[Jogador]-> [Jogador]
+atualiza i j l1 =  atualizaIndiceLista i j l1
+
+-- ** Funções de Acelera e Desacelera
+-- | Atualiza o 'Estado' do jogo após um 'Jogador' acelerar
+funAcelera :: Int-> Estado -> Estado 
+funAcelera i e@(Estado m js)= if estaMorto(j) ||  not(estaNoChao(j)) then e
+                           else (Estado m (atualiza i nj js))
+                           where
+                           j= mostraJogador i e
+                           nj= atualizaAcelaracao j
+-- | Atualiza o 'Estado' do jogo após um 'Jogador' desacelerar
+funDesacelera :: Int-> Estado -> Estado
+funDesacelera i e@(Estado m js) = if estaMorto(j) ||  not(estaNoChao(j)) then e
+                           else (Estado m (atualiza i nj js))
+                           where
+                           j= mostraJogador i e
+                           nj = atualizaDesacelaracao j
+
+-- | Retorna um jogador com o 'EstadoJogador' = 'Chao' True
+atualizaAcelaracao :: Jogador -> Jogador
+atualizaAcelaracao (Jogador a b c d e )  = (Jogador a b c d (Chao True))
+
+-- | Retorna um 'Jogador' com o 'EstadoJogador' = 'Chao' False
+atualizaDesacelaracao :: Jogador -> Jogador
+atualizaDesacelaracao (Jogador a b c d e )  = (Jogador a b c d (Chao False))
+
+-- ** Funções de Direcao
+-- | Atualiza o 'Estado' do jogo após um 'Jogador' mudar de 'Direcao'
+funDirecao :: Int -> Estado -> Direcao -> Estado
+funDirecao i (Estado m js) dir | estaMorto(j) = (Estado m js)
+                               | otherwise = (Estado m (atualiza i nj js))
+                                       where 
+                                        j = mostraJogador i (Estado m js)
+                                        nj = atualizaDirecao j dir m
+-- | Retorna a altura e a inclinacao de um jogador
+getEstadoAr :: Jogador -> (Double,Double)
+getEstadoAr (Jogador a b c d (Ar h inc g)) = (h,inc)
+
+-- | Função que dado um 'Jogador' e uma 'Direcao' atualiza a sua posição no 'Mapa'                 
+atualizaDirecao:: Jogador -> Direcao -> Mapa -> Jogador 
+atualizaDirecao j D m | not(estaNoAr j) = j
+                      | inc==(-90) = j
+                      | (inc-15.0)<(-90) = atualizaAltInc j h (-90)
+                      | otherwise = atualizaAltInc j h (inc-15)
+                      where (h,inc) = getEstadoAr j
+atualizaDirecao j E m | not(estaNoAr j) = j
+                      | inc==90 = j
+                      | inc+15.0>90 = atualizaAltInc j h 90
+                      | otherwise = atualizaAltInc j h (inc+15)
+                      where (h,inc) = getEstadoAr j
+atualizaDirecao j dir m | not(estaNoChao j) = j
+                        | difh <= 0.2 && difh >= (-0.2) = atualizaAcelaracao (movePista j dir (length m))
+                        | difh > 0.2                    = mataJogador j
+                        | difh < (-0.2)                 = atualizaAltInc (movePista j dir (length m)) alt1 (degrees (atan m1))
+                        where
+                            (alt1,m1) = altInc j m
+                            (alt2,m2) = altIncSeguinte j m dir
+                            difh = alt2 - alt1
+
+-- | Retorna um (Double,Double) com a altura e a inclinaçao a que o 'Jogador' se encontra
+altInc :: Jogador -> Mapa -> (Double,Double)
+altInc (Jogador a b _ _ _) m = (a1+(b-fromIntegral (floor b))*(a2-a1) , (a2-a1))
+                             where (a1,a2) = alturasPeca (encontraPosicaoMatriz (a,(floor b)) m)
+
+-- | Retorna um (Double,Double) com a altura e a inclinaçao da 'Peca' para qual o 'Jogador' se quer mudar
+altIncSeguinte :: Jogador -> Mapa -> Direcao -> (Double,Double)
+altIncSeguinte j@(Jogador a b _ _ _) m C | (ePosicaoMatrizValida i m) = let (a1,a2) = alturasPeca (encontraPosicaoMatriz i m) 
+                                                                        in ((a1+(b-(fromIntegral (floor b)))*(a2-a1)),(a2-a1))
+                                         | otherwise = altInc j m
+                                         where i = ((a-1),(floor b))
+altIncSeguinte j@(Jogador a b _ _ _) m B | (ePosicaoMatrizValida i m) = let (a1,a2) = alturasPeca (encontraPosicaoMatriz i m) 
+                                                                        in ((a1+(b-(fromIntegral (floor b)))*(a2-a1)),(a2-a1))
+                                         | otherwise = altInc j m
+                                         where i = ((a+1),(floor b))
+
+-- | Retorna um (Double,Double) com a altura inicial e final de uma 'Peca' respetivamente
+alturasPeca :: Peca -> (Double,Double)
+alturasPeca (Rampa p a1 a2) = (fromIntegral a1,fromIntegral a2)
+alturasPeca (Recta p a1) = (fromIntegral a1, fromIntegral a1)
+
+-- | Funcao que move o 'Jogador' 1 pista para 'C'(cima) ou para 'B'(baixo)
+movePista :: Jogador -> Direcao -> Int -> Jogador 
+movePista j@(Jogador a b c d e) C lim | (a-1)<0 = j
+                                      | otherwise = Jogador (a-1) b c d e
+movePista j@(Jogador a b c d e) B lim | (a+1)>(lim-1) = j
+                                      | otherwise = Jogador (a+1) b c d e
+
+-- | Altera o 'EstadoJogador' para refletir a nova altura e inclinação do 'Jogador'
+atualizaAltInc :: Jogador -> Double -> Double -> Jogador
+atualizaAltInc (Jogador a b c d e) h i = (Jogador a b c d (Ar h i 0))
+
+-- ** Funções de Dispara
+-- | Função que faz o 'Jogador' identificado pelo seu indice disparar uma 'Cola'
+funDispara :: Int -> Estado -> Estado 
+funDispara i (Estado m js) | municao j > 0 && x2 > 0 = (Estado nm (atualiza i nj js))
+                           | otherwise = (Estado m js)
+                           where 
+                            j= mostraJogador i (Estado m js)
+                            nj = consomeMunicao j
+                            (x1,x2) = coordenadaJogador j
+                            cola = funToCola(encontraPosicaoMatriz (x1,(x2-1)) m)
+                            nm = atualizaPosicaoMatriz (x1,x2-1) cola m      
+
+
+
+-- | Retorna a quantidade de munições que um 'Jogador' tem
+municao :: Jogador -> Int
+municao (Jogador _ _ _ ammo _ ) = ammo
+
+
+-- | Retorna o 'Jogador' apos consumir uma municao de 'Cola'
+consomeMunicao :: Jogador -> Jogador
+consomeMunicao (Jogador a b c d e) = Jogador a b c (d-1) e 
+
+
+-- | Altera o 'Piso' de uma 'Peca' para 'Cola'
+funToCola :: Peca -> Peca
+funToCola (Recta p x) = (Recta Cola x)
+funToCola (Rampa p x x1) = (Rampa Cola x x1)

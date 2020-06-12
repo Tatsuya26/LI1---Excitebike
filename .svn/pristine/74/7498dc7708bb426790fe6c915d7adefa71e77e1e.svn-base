@@ -1,0 +1,56 @@
+-- | Este módulo define funções comuns da Tarefa 3 do trabalho prático.
+module Tarefa3_2019li1g102 where
+import Tarefa0_2019li1g102
+import Tarefa1_2019li1g102
+import Tarefa2_2019li1g102
+import Data.List
+import LI11920
+
+-- * Testes
+
+-- | Testes unitários da Tarefa 3.
+--Este
+-- Cada teste é um 'Mapa'.
+testesT3 :: [Mapa]
+testesT3 = [m0,m1,m2,m3,m4,m5,m6,m7,m8,m9]
+m0 = gera 9 9 0
+m1 = gera 9 9 1
+m2 = gera 9 9 2
+m3 = gera 9 9 3
+m4 = gera 9 9 4
+m5 = gera 9 9 5
+m6 = gera 9 9 6
+m7 = gera 9 9 7
+m8 = gera 9 9 8
+m9 = gera 9 9 9
+-- * Funções principais da Tarefa 3.
+
+-- | Desconstrói um 'Mapa' numa sequência de 'Instrucoes'.
+--
+-- __NB:__ Uma solução correcta deve retornar uma sequência de 'Instrucoes' tal que, para qualquer mapa válido 'm', executar as instruções '(desconstroi m)' produza o mesmo mapa 'm'.
+--
+-- __NB:__ Uma boa solução deve representar o 'Mapa' dado no mínimo número de 'Instrucoes', de acordo com a função 'tamanhoInstrucoes'.
+
+desconstroi :: Mapa -> Instrucoes
+desconstroi list = concat(aux ls)
+              where aux :: Mapa -> [Instrucoes]
+                    aux [] = []
+                    aux (h:t) = (desconstroiColuna h):(aux t)
+                    (l:ls) = transpose list
+
+-- | Desconstroi uma coluna em listas instruções fazendo os unicos elementos da coluna e adicionar os indices listas dos repetidos e dos unicos as respetivas instruções
+desconstroiColuna :: [Peca] -> Instrucoes
+desconstroiColuna l = map toInstrucao zipped
+                     where uniques = nub l
+                           indices = indicesList l uniques
+                           zipped  = zip uniques indices
+-- | Recebe Duas  listas de Pecas e que por cada peça unica diz onde ela acontece na segunda lista                      
+indicesList :: [Peca] -> [Peca] -> [[Int]]
+indicesList l (h:t) = (elemIndices h l):(indicesList l t) 
+indicesList _ _ = []
+
+-- | Função que recebe uma peça e transforma em instrução
+toInstrucao :: (Peca,[Int]) -> Instrucao
+toInstrucao ((Recta p a),bl)   =  Anda bl p
+toInstrucao ((Rampa p a b),bl) = if (b-a) > 0 then Sobe bl p (b-a)
+                               else Desce bl p (a-b) 
